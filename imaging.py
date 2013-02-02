@@ -103,8 +103,8 @@ def callback_blur():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
-  canvas.itemconfig("bg", image = photo)
-  tk.nothing()
+  label.config(image = photo)
+  label.image = photo
 
 def callback_grayscale():
   global WORKING_IMAGE
@@ -112,8 +112,8 @@ def callback_grayscale():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
-  canvas.itemconfig("bg", image = photo)
-  tk.nothing()
+  label.config(image = photo)
+  label.image = photo
 
 def callback_binary():
   global WORKING_IMAGE
@@ -121,8 +121,8 @@ def callback_binary():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
-  canvas.itemconfig("bg", image = photo)
-  tk.nothing()
+  label.config(image = photo)
+  label.image = photo
 
 def callback_reset(image):
   w, h = image.size
@@ -130,17 +130,22 @@ def callback_reset(image):
   WORKING_IMAGE = image
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = argv[1])
-  canvas.itemconfig("bg", image = photo)
-  tk.nothing()
+  label.config(image = photo)
+  label.image = photo
 
 if __name__ == "__main__":
-  tk = Tkinter.Tk()
+  root = Tkinter.Tk()
   image = Image.open(argv[1])
   global WORKING_IMAGE 
   WORKING_IMAGE = image
   photo = ImageTk.PhotoImage(file = argv[1])
   w, h = image.size
-  canvas = Tkinter.Canvas(tk, width = w, height = h)
+
+  canvas = Tkinter.Canvas(root, width = w, height = h)
+  label = Tkinter.Label(canvas, image = photo)
+  label.image = photo
+  label.pack()
+
   button = Tkinter.Button(canvas, text = 'Grayscale', command = lambda:callback_grayscale())
   button_window = canvas.create_window(10, 10, anchor='nw', window=button)
   button = Tkinter.Button(canvas, text = 'Binary', command = lambda:callback_binary())
@@ -151,6 +156,5 @@ if __name__ == "__main__":
   button_window = canvas.create_window(10, 100, anchor='nw', window=button)
 
 
-  canvas.create_image(0, 0, anchor = "nw", image= photo, tags = "bg")
   canvas.pack()
-  tk.mainloop()
+  root.mainloop()
