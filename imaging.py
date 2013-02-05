@@ -2,33 +2,31 @@ import Image, ImageTk
 import Tkinter
 from sys import argv
 import numpy
+import math
 
 OUTPUT_FILE = "output.png"
 
 #Convertir a grayscale
-def to_grayscale(image, filt, t):
+def to_grayscale(image):
   if image.mode == "RGB":
     w, h = image.size
     pix = image.load()
-    output = Image.new("L", (w, h))
+    output = Image.new("RGB", (w, h))
     out_pix = output.load()
-
-    for k in range(t):
-      for i in range(w):
-        for j in range(h):
-          curr = pix[i, j]
-          out_pix[i, j] = max(curr)
+    for i in range(w):
+      for j in range(h):
+        curr = pix[i, j]
+        out_pix[i, j] = max(curr), max(curr), max(curr)
     output.save(OUTPUT_FILE, 'PNG')
     return output
   else:
     print "Imagen en blanco y negro"
-
     return image
+
 
 def to_binary(image, umb):
    w, h = image.size
    pix = image.load() 
-
    output = Image.new("L", (w, h))
    out_pix = output.load()
    for i in range(w):
@@ -133,7 +131,66 @@ def callback_reset(image):
   label.config(image = photo)
   label.image = photo
 
+def normalize(im3):
+  w, h = im3.size
+  pix1 = im3.load()
+  im2 = Image.new("L", (w, h))
+  pix2 = im2.load()
+  max_ = 0
+  min_ = 256
+  for i in range(w):
+    for j in range(h):
+      if pix1[i, j] > max_:
+	max_ = pix1[i, j]
+      if pix1[i, j] < min:
+	min_ = pix1[i, j]
+
+  prop = 256.0/(max_ - min_);
+  for i in range(w):
+    for j in range(h):
+      pix2[i, j] = int(math.floor((pix1[i, j] - min_)*prop))
+  im2.save("normal.png", "png")  
+
+def contornos(im1, im2):
+  pix1 = im1.load()
+  pix2 = im2.load()
+  w, h = im1.size
+  im3 = Image.new('L', im1.size)
+  pix3 = im3.load()
+  for i in range(w):
+    for j in range(h):
+      for k in range(len(pix2[i, j])):
+        pix3[i, j] = (pix1[i, j][k] - pix2[i, j][k])
+  im3.save('output.png', 'png')
+  return im3
+
+def zeros(n, m):
+  matrix = []
+  for i in range(n):
+    curr = []
+    for j in range(m):
+      curr.append(0)
+    matrix.append(curr)
+  return matrix
+
+def convolucion(im, h):
+  w, h = im.size
+  pix = im.load()
+
+  im2 = Image.new('RGB', (w, h))
+  pix2 = im2.load()
+
+
 if __name__ == "__main__":
+  im_name = "../test.jpg"
+  im1 = Image.open(im_name)
+  im1 = to_grayscale(im1)
+  im2 = blur(im1)
+  im3 = contornos(im1, im2)
+  normalize(im3)
+
+
+"""
   root = Tkinter.Tk()
   image = Image.open(argv[1])
   global WORKING_IMAGE 
@@ -157,4 +214,4 @@ if __name__ == "__main__":
 
 
   canvas.pack()
-  root.mainloop()
+  root.mainloop()"""
