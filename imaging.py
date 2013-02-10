@@ -4,27 +4,33 @@ import Tkinter
 from sys import argv
 import numpy
 import random
-import math
+import math, random, time
+from os import path
 
 OUTPUT_FILE = "output.png"
 
-#Filtro sal y pimienta, aplicando pixeles negros y blancos al azar
+#Ruido sal y pimienta, aplicando pixeles negros y blancos al azar
 #Parametro
-#image Imagen a aplicar el filtro
-def sal_y_pimienta(im, porcentaje):
+#-im Objeto de la clase PIL con la imagen a aplicar el ruido
+#-intensidad Porcentaje de pixeles sobre el total que seran sal y pimienta.
+#-pol Rango de polarizacion que determina que tan blancos o que tan negros
+#     son los puntos.
+def sal_y_pimienta(im, intensidad, pol):
 	w, h = im.size
 	pix = im.load()
 	n = w*h
-	n = int(porcentaje*(n/100))
+	n = int(intensidad*(n/100))
 	i = 0
 	if im.mode == "RGB":
 		while i != n:
 			x, y = random.randint(0, w - 1), random.randint(0, h - 1)
 			det = random.randint(0, 1)
 			if det == 1:
-				pix[x, y] = (255, 255, 255)
+				sal = random.randint(255-pol, 255)
+				pix[x, y] = (sal, sal, sal)
 			else:
-				pix[x, y] = (0, 0, 0)
+				pim = random.randint(0, pol)
+				pix[x, y] = (pim, pim, pim)
 			i += 1
 
 	if im.mode == "L":
@@ -32,19 +38,30 @@ def sal_y_pimienta(im, porcentaje):
 			x, y = random.randint(0, w - 1), random.randint(0, h - 1)
 			det = random.randint(0, 1)
 			if det == 1:
-				pix[x, y] = 255
+				sal = random.randint(255-pol, 255)
+				pix[x, y] = sal
 			else:
-				pix[x, y] = 0
+				pim = random.randint(0, pol)
+				pix[x, y] = pim
 			i += 1
 
 	im.save("output.png", "png")
 	return im
 
-#Deshacer el
-def des_sal_y_pimienta(im):
+#Eliminacion del ruido sal y pimienta, usando una combinacion entre promedio y umbrales
+#Parametros
+#-im Objeto de la libreria PIL con la imagen a la cual se eliminara el ruido.
+#-umb Umbral que determinara en que rangos de pixeles se aplicara la eliminacion de ruido.
+def des_sal_y_pimienta(im, umb):
 	w, h = im.size
 	pix = im.load()
-	salypimienta = [(255, 255, 255), 255, (0, 0, 0), 0]
+	salypimienta = []
+	for i in range(umb):
+		salypimienta.append((i, i, i))
+		salypimienta.append((i))
+	for i in range(255-umb, 255):
+		salypimienta.append((i, i, i))
+		salypimienta.append((i))
 	if im.mode == "RGB":
 		for i in range(w):
 			for j in range(h):
@@ -80,18 +97,18 @@ def to_grayscale(image, filt):
 	if image.mode == "RGB":
 		w, h = image.size
 		pix = image.load()
-		output = Image.new("RGB", (w, h))
+		output = Image.new("L", (w, h))
 		out_pix = output.load()
 		for i in range(w):
 			for j in range(h):
 				curr = pix[i, j]
 				if filt == "prom":
 					prom = (curr[0] + curr[1] + curr[2]) / 3
-					out_pix[i, j] = prom, prom, prom
+					out_pix[i, j] = prom
 				if filt == "max":
-					out_pix[i, j] = max(curr), max(curr), max(curr)
+					out_pix[i, j] = max(curr)
 				if filt == "min":
-					out_pix[i, j] = min(curr), min(curr), min(curr)
+					out_pix[i, j] = min(curr)
 		output.save(OUTPUT_FILE, 'PNG')
 		return output
 	else:
@@ -157,12 +174,15 @@ def blur(image, n):
 		output.save(OUTPUT_FILE, "png")
 	return output
 
-#Normalizacion de la imagen.
-def normalize(im3):
-	w, h = im3.size
-	pix1 = im3.load()
+#Normalizacion de la imagen para fijar los pixeles dentro de un rango
+#entre el pixel mayor y menor.
+#Parametros
+#-im Objeto de la libreria PIL con la imagen a normalizar
+def normalize(im):
+	w, h = im.size
+	pix1 = im.load()
 	im2 = Image.new("L", (w, h))
-	pix2 = im2.load()
+	pix2 = im.load()
 	max_ = 0
 	min_ = 256
 	for i in range(w):
@@ -171,14 +191,18 @@ def normalize(im3):
 				max_ = pix1[i, j]
 			if pix1[i, j] < min:
 				min_ = pix1[i, j]
-
+	print max_, min_
 	prop = 256.0/(max_ - min_);
 	for i in range(w):
 		for j in range(h):
 			pix2[i, j] = int(math.floor((pix1[i, j] - min_)*prop))
-	im2.save("normal.png", "png") 
+	im2.save(OUTPUT_FILE, "png") 
 	return im2 
 
+#Diferencia entre dos imagenes, restando los pixeles de una a otra.
+#Parametros
+#-im1 Imagen original a la cual se restaran pixeles.
+#-im2 Imagen que se restara a la original.
 def contornos(im1, im2):
 	pix1 = im1.load()
 	pix2 = im2.load()
@@ -187,9 +211,8 @@ def contornos(im1, im2):
 	pix3 = im3.load()
 	for i in range(w):
 		for j in range(h):
-			for k in range(len(pix2[i, j])):
-				pix3[i, j] = (pix1[i, j][k] - pix2[i, j][k])
-	im3.save('output.png', 'png')
+			pix3[i, j] = (pix1[i, j] - pix2[i, j])
+	im3.save(OUTPUT_FILE, 'png')
 	return im3
 
 def zeros(n, m):
@@ -201,17 +224,30 @@ def zeros(n, m):
 		matrix.append(curr)
 	return matrix
 
-def convolucion(im, h):
+def convolucion(im, g):
 	w, h = im.size
 	pix = im.load()
+	out_im = Image.new("L", (w, h))
+	out = out_im.load()
+	for i in range(w):
+		for j in range(h):
+			suma = 0
+			for n in range(i-1, i+2):
+				for m in range(j-1, j+2):
+					try:
+						if n >= 0 and m >= 0 and n < w and m < h:
+							suma += int(g[n - (i - 1), m - (j - 1)] * pix[n, m])
+					except IndexError:
+						suma += 0
+			out[i, j] = suma
+	out_im.save("output.png", "png")
+	return out_im
 
-	im2 = Image.new('RGB', (w, h))
-	pix2 = im2.load()
 
 def callback_blur():
 	print "flip"
 	global WORKING_IMAGE
-	WORKING_IMAGE = blur(WORKING_IMAGE, 1)
+	WORKING_IMAGE = blur(WORKING_IMAGE, 10)
 	w, h = WORKING_IMAGE.size
 	canvas.config(width = w, height = h)
 	photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
@@ -239,7 +275,7 @@ def callback_binary():
 def callback_sal(image):
 	w, h = image.size
 	global	WORKING_IMAGE
-	WORKING_IMAGE = sal_y_pimienta(WORKING_IMAGE, 0.5)
+	WORKING_IMAGE = sal_y_pimienta(WORKING_IMAGE, 0.5, 30)
 	canvas.config(width = w, height = h)
 	photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
 	label.config(image = photo)
@@ -248,7 +284,7 @@ def callback_sal(image):
 def callback_des_sal(image):
 	w, h = image.size
 	global	WORKING_IMAGE
-	WORKING_IMAGE = des_sal_y_pimienta(WORKING_IMAGE)
+	WORKING_IMAGE = des_sal_y_pimienta(WORKING_IMAGE, 30)
 	canvas.config(width = w, height = h)
 	photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
 	label.config(image = photo)
@@ -265,15 +301,33 @@ def callback_reset(image):
 
 
 if __name__ == "__main__":
+	"""
+	tiempos = []
+	for i in range(1):
+		tiempo = time.time()
+		assert(path.isfile(argv[1]))
+		im = Image.open(argv[1])
+		im = to_grayscale(im, "prom")
+		#im = blur(im, 10)
+		h = [
+				[1, 3, 3], 
+				[-3, -2, 3], 
+				[-3, -3, 1]]
+		h = numpy.array(h, dtype = numpy.int8)
+		im = convolucion(im, h)
+		fin = time.time() - tiempo
+		tiempos.append(fin)
+		print fin
+	print "Promedio %s"%(sum(tiempos)/len(tiempos))
+	#im = normalize(im)
+	#im = to_binary(im, 30)
 
-	"""im_name = "../test.jpg"
-	im1 = Image.open(im_name)
-	im1 = to_grayscale(im1, "min")
-	im2 = blur(im1, 1)
-	im3 = contornos(im1, im2)
-	normalize(im3)"""
-
-
+	#h = [[1, 1, 1], 
+	#		[-1, -2, 1], 
+	#		[-1, -1, 1]]
+	#h = numpy.array(h, dtype = numpy.int8)
+	#im = convolucion(im, h)
+	"""
 	root = Tkinter.Tk()
 	root.title("Vision Computacional")
 	image = Image.open(argv[1])
