@@ -229,16 +229,13 @@ def convolucion(im, g):
 	pix = im.load()
 	out_im = Image.new("L", (w, h))
 	out = out_im.load()
-	for i in range(w):
-		for j in range(h):
+	for i in xrange(w):
+		for j in xrange(h):
 			suma = 0
-			for n in range(i-1, i+2):
-				for m in range(j-1, j+2):
-					try:
+			for n in xrange(i-1, i+2):
+				for m in xrange(j-1, j+2):
 						if n >= 0 and m >= 0 and n < w and m < h:
-							suma += int(g[n - (i - 1), m - (j - 1)] * pix[n, m])
-					except IndexError:
-						suma += 0
+							suma += g[n - (i - 1)][ m - (j - 1)] * pix[n, m]
 			out[i, j] = suma
 	out_im.save("output.png", "png")
 	return out_im
@@ -301,27 +298,25 @@ def callback_reset(image):
 
 
 if __name__ == "__main__":
-	"""
+	assert(path.isfile(argv[1]))
 	tiempos = []
-	for i in range(1):
-		tiempo = time.time()
-		assert(path.isfile(argv[1]))
+	for i in range(30):
+		inicio = time.time()
 		im = Image.open(argv[1])
 		im = to_grayscale(im, "prom")
 		#im = blur(im, 10)
-		h = [
-				[1, 3, 3], 
+		h = [[1, 3, 3], 
 				[-3, -2, 3], 
 				[-3, -3, 1]]
-		h = numpy.array(h, dtype = numpy.int8)
 		im = convolucion(im, h)
-		fin = time.time() - tiempo
+		fin = time.time() - inicio
 		tiempos.append(fin)
-		print fin
-	print "Promedio %s"%(sum(tiempos)/len(tiempos))
+		#print fin
+	print "Tiempos: %s"%tiempos
+	print "Promedio: %s"%(sum(tiempos)/len(tiempos))
+
 	#im = normalize(im)
 	#im = to_binary(im, 30)
-
 	#h = [[1, 1, 1], 
 	#		[-1, -2, 1], 
 	#		[-1, -1, 1]]
@@ -358,4 +353,4 @@ if __name__ == "__main__":
 
 	canvas.pack(side = "top")
 	second_canvas.pack(side = "bottom")
-	root.mainloop()
+	root.mainloop()"""
