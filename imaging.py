@@ -227,32 +227,29 @@ def convolucion(im, g):
 
 
 def bfs(im, origen, color):
-	cola = []
-	cola.append(origen)
 	pix = im.load()
-	original = pix[origen]
 	w, h = im.size
-	n = 0
+	q = []
 	xs = []
 	ys = []
-	while len(cola) > 0:
-		(x, y) = cola.pop(0)
-		#print 'pop'
+	q.append(origen)
+	original = pix[origen]
+	n = 0
+	while len(q) > 0:
+		(x, y) = q.pop(0)
 		actual = pix[x, y]
 		if actual == original or actual == color:
-			#print x, y
 			for dx in [-1, 0, 1]:
 				for dy in [-1, 0, 1]:
-					candidato = (x + dy, y + dx)
-					if candidato[0] >= 0 and candidato[0] < w and \
-									candidato[1] >= 0 and candidato[1] < h:
-						contenido = pix[candidato[0], candidato[1]]
+					i, j = (x + dx, y + dy)
+					if i >= 0 and i < w and j >= 0 and j < h:
+						contenido = pix[i, j]
 						if contenido == original:
-							pix[candidato[0], candidato[1]] = color
-							xs.append(candidato[0])
-							ys.append(candidato[1])
+							pix[i, j] = color
+							xs.append(i)
+							ys.append(j)
 							n += 1
-							cola.append(candidato)
+							q.append((i, j))
 	im.save(OUTPUT_FILE, 'png')
 	return n, xs, ys
 
@@ -267,22 +264,26 @@ def find_max(array):
 
 def classify_forms(im):
 	w, h = im.size
-	#im = to_binary(im, 127)
-	total = w*h
+	total = w * h
 	porcentajes = []
 	centroids = []
 	cont = 0
 	pix = im.load()
+	basura = []
 	for i in range(w):
 		for j in range(h):
 			if pix[i, j] == (0, 0, 0):
 				r, g, b = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
 				n, x, y = bfs(im, (i, j), (r, g, b))
-				centroids.append((sum(x) / len(x), sum(y) / len(y)))
-				porcentajes.append([float(n)/float(total), (r, g, b)])
-				print "Pintando figura %s"%cont
-				cont += 1
-	fondo_id = find_max(porcentajes)
+				p = float(n)/float(total) * 100.0
+				if p > 0.2:
+					centroids.append((sum(x) / len(x), sum(y) / len(y)))
+					porcentajes.append([p, (r, g, b)])
+					print "Pintando figura %s"%cont
+					cont += 1
+				else:
+					basura.append((x, y))
+	fondo_id = porcentajes.index(max(porcentajes))
 	max_color = porcentajes[fondo_id][1]
 	print "Pintando fondo"
 	for i in range(w):
@@ -298,7 +299,7 @@ def classify_forms(im):
 	im.save(OUTPUT_FILE, 'png')
 	cont = 0
 	for p in porcentajes:
-		print "Porcentaje de la figura ID %s: %.2f"%(cont, p[0]*100.0)
+		print "Porcentaje de la figura ID %s: %.2f"%(cont, p[0])
 		cont += 1
 	return im, centroids
 
@@ -313,7 +314,7 @@ def callback_classify():
 	i = 0
 	for center in centroids:
 		dx, dy = center[0], center[1]
-		Tkinter.Label(canvas, text = 'Objeto %d'%i).place(x = dx, y = dy)
+		Tkinter.Label(canvas, text = '%d'%i).place(x = dx, y = dy)
 		i += 1
 
 def callback_blur():
@@ -375,16 +376,16 @@ def callback_reset():
 if __name__ == "__main__":
 	assert(path.isfile(argv[1]))
 	im = Image.open(argv[1]).convert('RGB')
+	#im = to_binary(im, 127)
+	#bfs(im, (0, 0), (255, 0, 0))
 	#im = to_grayscale(im, 'prom')
 	#h = [[ -1, -1, -1],
 	#			[-1, 8, -1],
 	#			[-1, -1, -1]]						
 	#im = convolucion(im, h)
 	#im = blur(im, 10)
-	#im = classify_forms(im)
 	#im = to_binary(im, 30)
 	#im = classify_forms(im)
-	
 	root = Tkinter.Tk()
 	root.title("Vision Computacional")
 	image = Image.open(argv[1]).convert('RGB')
