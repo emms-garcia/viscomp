@@ -11,6 +11,8 @@ import sys
 OUTPUT_FILE = "output.png"
 INICIO = 0
 FIN = 0
+FOREGROUND = (255, 255, 255)
+BACKGROUND = (0, 0, 0)
 #Ruido sal y pimienta, aplicando pixeles negros y blancos al azar
 #Parametro
 #-im Objeto de la clase PIL con la pix a aplicar el ruido
@@ -253,6 +255,32 @@ def bfs(im, origen, color):
   im.save(OUTPUT_FILE, 'png')
   return n, coords
 
+def check_erosion(pix, i, j):
+  for n in range(i-1, i+2):
+    for m in range(j-1, j+2):
+      if pix[n, m] == (BACKGROUND):
+        return True
+  return False
+
+def dilation(im):
+  w, h = im.size
+  pix = im.load()
+  struct = [ [1, 1, 1],
+             [1, 1, 1],
+             [1, 1, 1] ]
+  im2 = Image.new('RGB', (w, h))
+  pix2 = im2.load()
+  for i in range(w):
+    for j in range(h):
+      if pix[i, j] == FOREGROUND:
+        if check_erosion(pix, i, j):
+          pix2[i, j] = BACKGROUND
+        else:
+          pix2[i, j] = FOREGROUND
+  im2.save(OUTPUT_FILE, 'png')
+  return im2
+
+
 def classify_forms(im):
   w, h = im.size
   total = w * h
@@ -266,15 +294,13 @@ def classify_forms(im):
       if pix[i, j] == (0, 0, 0):
         r, g, b = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
         n, coords = bfs(im, (i, j), (r, g, b))
+        sys.exit()
         p = float(n)/float(total) * 100.0
-        if p > 0.2:
-          sums = [sum(x) for x in zip(*coords)]
-          centroids.append(sums[0] / len(sums), sums[1] / len(sums))
-          porcentajes.append([p, (r, g, b)])
-          print "Pintando figura %s"%cont
-          cont += 1
-        else:
-          basura.append((x, y))
+        print "Pintando figura %s"%cont
+        sums = [sum(x) for x in zip(*coords)]
+        centroids.append((sums[0] / len(coords), sums[1] / len(coords)))
+        porcentajes.append([p, (r, g, b)])
+        cont += 1
   fondo_id = porcentajes.index(max(porcentajes))
   max_color = porcentajes[fondo_id][1]
   print "Pintando fondo"
@@ -284,6 +310,7 @@ def classify_forms(im):
         pix[i, j] = (150, 150, 150)
   print "Pintando centros de masa"
   for i in range(len(centroids)):
+    print centroids[i]
     if i == fondo_id:
       pix[centroids[i]] = (255, 0, 0)
     else:
@@ -295,11 +322,8 @@ def classify_forms(im):
     cont += 1
   return im, centroids
 
-def turn(p1, p2, p3):
-  t = cmp(0, (p2[0] - p1[0])*(p3[1] - p1[1]) - (p3[0] - p1[0])*(p2[1] - p1[1]))
-  if t == -1: return 'LEFT'
-  elif t == 0: return 'NONE'
-  elif t == 1: return 'RIGHT' 
+def is_left(p1, p2, p3):
+ return ((p2[0] - p1[0])*(p3[1] - p1[1]) - (p2[1] - p1[1])*(p3[0] - p1[0])) > 0 
 
 def jarvis(S):
   hull = [min(S)]
@@ -307,7 +331,7 @@ def jarvis(S):
   while True:
     end = S[0]
     for j in range(len(S) - 1):
-      if end == hull[i] or turn(S[j], hull[i], end) == 'LEFT':
+      if end == hull[i] or is_left(end, hull[i], S[j]):
         end = S[j]
     i += 1
     hull.append(end)
@@ -328,8 +352,20 @@ def convex_hull(im):
     for points in hull:
       pix[points] = (0, 255, 0)
   im.save(OUTPUT_FILE, 'png')
-
   return im, hulls
+
+def negativo(im):
+  w, h = im.size
+  pix = im.load()
+  for i in range(w):
+    for j in range(h):
+      act = pix[i, j]
+      if act == (255, 255, 255):
+        pix[i, j] = 0, 0, 0
+      else:
+        pix[i, j] = 255, 255, 255
+  im.save(OUTPUT_FILE, 'png')
+  return im
         
       
 
@@ -399,6 +435,13 @@ def callback_des_sal():
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
 
+def callback_negative():
+  w, h = image.size
+  global  WORKING_IMAGE
+  WORKING_IMAGE = negativo(WORKING_IMAGE)
+  canvas.config(width = w, height = h)
+  photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+
 def callback_reset():
   w, h = image.size
   global  WORKING_IMAGE
@@ -406,22 +449,29 @@ def callback_reset():
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = argv[1])
 
+def check(im):
+  w, h = im.size
+  pix = im.load()
+  for i in range(w):
+    for j in range(h):
+      if pix[i, j] == (255, 255, 255) or pix[i, j] == (0, 0, 0):
+        pass
+      else:
+        return False
+  return True
 
 if __name__ == "__main__":
   global WORKING_IMAGE 
   assert(path.isfile(argv[1]))
   im = Image.open(argv[1]).convert('RGB')
-  #im = to_binary(im, 127)
-  #bfs(im, (0, 0), (255, 0, 0))
-  #im = to_grayscale(im, 'prom')
-  #h = [[ -1, -1, -1],
-  #      [-1, 8, -1],
-  #      [-1, -1, -1]]            
-  #im = convolucion(im, h)
-  #im = blur(im, 10)
-  #im = to_binary(im, 30)
-  #im = classify_forms(im)
-  #convex_hull(im)
+  #print check(im)
+  #im = to_binary(im, 1)
+  for i in range(10):
+    im = dilation(im)
+    im.save("output_%s.png"%(i+1), "png")
+  #im = negativo(im)
+  #classify_forms(im)
+  """
   root = Tkinter.Tk()
   root.title("Vision Computacional")
   image = Image.open(argv[1]).convert('RGB')
@@ -435,7 +485,8 @@ if __name__ == "__main__":
   button_content = { 'Grayscale' : lambda:callback_grayscale, 'Binary' : lambda:callback_binary(),
                     'MedianBlur' : lambda:callback_blur(), 'SalyPimienta' : lambda:callback_sal(),
                     'DeshacerSyP': lambda:callback_des_sal(), 'Reset' : lambda:callback_reset(),
-                    'Clasificar' : lambda:callback_classify(), 'ConvexHull' : lambda:callback_convex_hull()
+                    'Clasificar' : lambda:callback_classify(), 'ConvexHull' : lambda:callback_convex_hull(),
+                    'Negativo' : lambda:callback_negative()
                     }
   second_canvas = Tkinter.Canvas(root, width = w, height = h+50)
   i = 1
@@ -446,4 +497,4 @@ if __name__ == "__main__":
 
   canvas.pack(side = "left")
   second_canvas.pack(side = "right")
-  root.mainloop()
+  root.mainloop()"""
