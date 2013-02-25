@@ -1,18 +1,21 @@
 #!/usr/bin/python
-import Image, ImageTk
+import Image
+import ImageTk
 import Tkinter
 from sys import argv
-import numpy
+#import numpy
 import random
-import math, random, time
+import math
+import random
+import time
 from os import path
 import sys
 
 OUTPUT_FILE = "output.png"
 INICIO = 0
 FIN = 0
-FOREGROUND = (255, 255, 255)
-BACKGROUND = (0, 0, 0)
+BACKGROUND = (255, 255, 255)
+FOREGROUND = (0, 0, 0)
 #Ruido sal y pimienta, aplicando pixeles negros y blancos al azar
 #Parametro
 #-im Objeto de la clase PIL con la pix a aplicar el ruido
@@ -272,11 +275,20 @@ def dilation(im):
   pix2 = im2.load()
   for i in range(w):
     for j in range(h):
+      t = False
       if pix[i, j] == FOREGROUND:
-        if check_erosion(pix, i, j):
-          pix2[i, j] = BACKGROUND
-        else:
-          pix2[i, j] = FOREGROUND
+        for n in range(i-1, i+2):
+          for m in range(j-1, j+2):
+            try:
+              if pix[n, m] == (BACKGROUND):
+                t = True
+            except:
+              pass
+      if t:
+        pix2[i, j] = FOREGROUND
+      else:
+        pix2[i, j] = pix[i, j]
+        
   im2.save(OUTPUT_FILE, 'png')
   return im2
 
@@ -366,8 +378,51 @@ def negativo(im):
         pix[i, j] = 255, 255, 255
   im.save(OUTPUT_FILE, 'png')
   return im
-        
-      
+
+def hough_transform(im):
+  maskx = [[-1, -1, -1], [2, 2, 2], [-1, -1, -1]]
+  masky = [[-1, 2, -1], [-1, 2, -1], [-1, 2, -1]]
+  gradx = convolucion(im, maskx)
+  grady = convolucion(im, masky)
+  gx = gradx.load()
+  gy = grady.load()
+  matrix = []
+  combination = {}
+  w, h = im.size
+  for i in range(w):
+    tmp = list()
+    for j in range(h):
+      x = gx[i, j][0]
+      y = gy[i, j][0]
+      theta = 0.0
+      if abs(x) + abs(y) <= 0.0:
+        theta = None
+      elif x == 0 and y == 255:
+        theta = 90
+      else:
+        theta = math.degrees(abs(y/x))
+      if theta is not None:
+        rho = abs((i) * math.cos(theta) + (j) * math.sin(theta))
+        if i > 0 and i < w-1 and j > 0 and j < h - 1:
+          if (rho, theta) in combination:
+            combination[(rho, theta)] += 1
+          else:
+            combination[(rho, theta)] = 1
+        tmp.append((rho, theta))
+      else:
+        tmp.append((None, None))
+    matrix.append(tmp)
+  pix = im.load()
+  for i in range(w):
+    for j in range(h):
+      if i > 0 and j > 0 and i < w and j < h:
+        rho, theta = matrix[i][j]
+        if theta == 0:
+          pix[i, j] = (255, 0, 0)
+        elif theta == 90:
+          pix[i, j] = (0, 0, 255)
+  im.save('output.png', 'png')
+  return im
 
 def callback_convex_hull():
   global WORKING_IMAGE
@@ -383,7 +438,6 @@ def callback_convex_hull():
     for j in range(len(hulls[i]) - 1):
       #print (hulls[i][j]), (hulls[i][j+1])
       canvas.create_line((hulls[i][j]), (hulls[i][j+1]), fill="blue", width = 3.0)
-  #err
 
 def callback_classify():
   global WORKING_IMAGE
@@ -397,7 +451,6 @@ def callback_classify():
     dx, dy = center[0], center[1]
     Tkinter.Label(canvas, text = '%d'%i).place(x = dx, y = dy)
     i += 1
-
 
 def callback_blur():
   print "flip"
@@ -463,15 +516,6 @@ def check(im):
 if __name__ == "__main__":
   global WORKING_IMAGE 
   assert(path.isfile(argv[1]))
-  im = Image.open(argv[1]).convert('RGB')
-  #print check(im)
-  #im = to_binary(im, 1)
-  for i in range(10):
-    im = dilation(im)
-    im.save("output_%s.png"%(i+1), "png")
-  #im = negativo(im)
-  #classify_forms(im)
-  """
   root = Tkinter.Tk()
   root.title("Vision Computacional")
   image = Image.open(argv[1]).convert('RGB')
@@ -497,4 +541,4 @@ if __name__ == "__main__":
 
   canvas.pack(side = "left")
   second_canvas.pack(side = "right")
-  root.mainloop()"""
+  root.mainloop()
