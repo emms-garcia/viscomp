@@ -379,7 +379,10 @@ def negativo(im):
   im.save(OUTPUT_FILE, 'png')
   return im
 
-def hough_transform(im):
+def sort_dictionary(d):
+  return sorted(d.items(), key=lambda x: x[1], reverse = True)
+
+def hough_transform(im, umb):
   maskx = [[-1, -1, -1], [2, 2, 2], [-1, -1, -1]]
   masky = [[-1, 2, -1], [-1, 2, -1], [-1, 2, -1]]
   gradx = convolucion(im, maskx)
@@ -388,6 +391,7 @@ def hough_transform(im):
   gy = grady.load()
   matrix = []
   combination = {}
+  angles = []
   w, h = im.size
   for i in range(w):
     tmp = list()
@@ -403,6 +407,7 @@ def hough_transform(im):
         theta = math.degrees(abs(y/x))
       if theta is not None:
         rho = abs((i) * math.cos(theta) + (j) * math.sin(theta))
+        if not theta in angles:  angles.append(theta)
         if i > 0 and i < w-1 and j > 0 and j < h - 1:
           if (rho, theta) in combination:
             combination[(rho, theta)] += 1
@@ -412,15 +417,23 @@ def hough_transform(im):
       else:
         tmp.append((None, None))
     matrix.append(tmp)
+  print angles
+  combination = sort_dictionary(combination)
+  n = int(math.ceil(len(combination) * umb))
+  frec = {}
+  for i in range(n):
+    (rho, theta) = combination[i][0]
+    frec[(rho, theta)] = combination[1]
   pix = im.load()
   for i in range(w):
     for j in range(h):
       if i > 0 and j > 0 and i < w and j < h:
         rho, theta = matrix[i][j]
-        if theta == 0:
-          pix[i, j] = (255, 0, 0)
-        elif theta == 90:
-          pix[i, j] = (0, 0, 255)
+        if (rho, theta) in frec:
+          if theta == 0:
+            pix[i, j] = (255, 0, 0)
+          elif theta == 90:
+            pix[i, j] = (0, 0, 255)
   im.save('output.png', 'png')
   return im
 
