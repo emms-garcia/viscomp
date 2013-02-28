@@ -382,9 +382,15 @@ def negativo(im):
 def sort_dictionary(d):
   return sorted(d.items(), key=lambda x: x[1], reverse = True)
 
+def random_color():
+  r, g, b = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
+  return (r, g, b)
+
 def hough_transform(im, umb):
   maskx = [[-1, -1, -1], [2, 2, 2], [-1, -1, -1]]
   masky = [[-1, 2, -1], [-1, 2, -1], [-1, 2, -1]]
+  #maskx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
+  #masky = [[1, 2, 1], [0, 0, 0], [-1, -2, -1]]
   gradx = convolucion(im, maskx)
   grady = convolucion(im, masky)
   gx = gradx.load()
@@ -396,17 +402,17 @@ def hough_transform(im, umb):
   for i in range(w):
     tmp = list()
     for j in range(h):
-      x = gx[i, j][0]
-      y = gy[i, j][0]
-      theta = 0.0
-      if abs(x) + abs(y) <= 0.0:
-        theta = None
-      elif x == 0 and y == 255:
-        theta = 90
+      r, g, b = gx[i, j]
+      x = float((r + g + b) / 3)
+      r, g, b = gy[i, j]
+      y = float((r + g + b) / 3)
+      if x > 0:
+        theta = math.atan(y/x)
       else:
-        theta = math.degrees(abs(y/x))
+        theta = None
       if theta is not None:
-        rho = abs((i) * math.cos(theta) + (j) * math.sin(theta))
+        theta = int(math.degrees(theta)/10)*10
+        rho = int((i) * math.cos(theta) + (j) * math.sin(theta)/10)*10
         if not theta in angles:  angles.append(theta)
         if i > 0 and i < w-1 and j > 0 and j < h - 1:
           if (rho, theta) in combination:
@@ -418,23 +424,37 @@ def hough_transform(im, umb):
         tmp.append((None, None))
     matrix.append(tmp)
   print angles
-  combination = sort_dictionary(combination)
-  n = int(math.ceil(len(combination) * umb))
-  frec = {}
-  for i in range(n):
-    (rho, theta) = combination[i][0]
-    frec[(rho, theta)] = combination[1]
   pix = im.load()
+  colors = {}
+  lines = {}
+  line_image = Image.new('RGB', (w, h))
+  pix_line = line_image.load()
   for i in range(w):
     for j in range(h):
       if i > 0 and j > 0 and i < w and j < h:
         rho, theta = matrix[i][j]
-        if (rho, theta) in frec:
-          if theta == 0:
-            pix[i, j] = (255, 0, 0)
-          elif theta == 90:
-            pix[i, j] = (0, 0, 255)
+        if (rho, theta) in combination:
+          if (theta) not in colors: colors[(theta)] = random_color()
+          if theta not in lines: lines[theta] = 1
+          else: lines[theta] += 1
+          pix[i, j] = colors[(theta)]
+          pix_line[i, j] = (255, 255, 255)
+  print len(colors), len(angles)
+  for line in lines:
+    print "Cantidad de pixeles con angulo %s: %s, Color: %s"%(line, lines[line], colors[line])
+  colors = []
+  for i in range(w):
+    for j in range(h):
+      if pix_line[i, j] == (255, 255, 255):
+        color = random_color()
+        while color in colors:
+          color = random_color()
+        n, coords = bfs(line_image, (i, j), color)
+        colors.append(color)
+  for i in range(len(colors)):
+    print "Color de la linea %s: %s"%(i+1, colors[i])
   im.save('output.png', 'png')
+  line_image.save('output_lines.png')
   return im
 
 def callback_convex_hull():
@@ -529,10 +549,14 @@ def check(im):
 if __name__ == "__main__":
   global WORKING_IMAGE 
   assert(path.isfile(argv[1]))
-  root = Tkinter.Tk()
-  root.title("Vision Computacional")
   image = Image.open(argv[1]).convert('RGB')
   WORKING_IMAGE = image
+  image = to_grayscale(image, 'prom')
+  to_binary(image, 70)
+  #hough_transform(image, 1.0)
+  """
+  root = Tkinter.Tk()
+  root.title("Vision Computacional")
   photo = ImageTk.PhotoImage(file = argv[1])
   w, h = image.size
 
@@ -554,4 +578,4 @@ if __name__ == "__main__":
 
   canvas.pack(side = "left")
   second_canvas.pack(side = "right")
-  root.mainloop()
+  root.mainloop()"""
