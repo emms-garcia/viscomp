@@ -10,6 +10,7 @@ import random
 import time
 from os import path
 import sys
+import ImageDraw
 
 OUTPUT_FILE = "output.png"
 INICIO = 0
@@ -216,21 +217,103 @@ def zeros(n, m):
     matrix.append(curr)
   return matrix
 
-def convolucion(im, g):
-  w, h = im.size
+def paint_circles(im, coords, radius):
   pix = im.load()
-  out_im = Image.new("RGB", (w, h))
-  out = out_im.load()
+  draw = ImageDraw.Draw(im)
+  w, h = im.size
+  colors = []
+  i = 0
+  
+  for x, y in coords:
+    pix[x, y] = (0, 255, 0)
+    draw.text((x, y), '%s'%(i+1), (0,0,0))
+    rg = random.randint(100, 250)
+    i += 1
+    draw.ellipse((x-radius, y-radius, x+radius, y+radius), outline = (rg, rg, 0))
+  im.save('output.png', 'PNG')
+
+def zeros(n, m):
+  matrix = []
+  for i in range(n):
+    tmp = []
+    for j in range(m):
+      tmp.append(0)
+    matrix.append(tmp)
+  return matrix
+
+def group_votes(frec, (w, h)):
+  dim = max(w, h)
+  for padding in range (1, int(round(dim*0.1))):
+    c = True
+    while c:
+      c = False
+      for i in range(w):
+        for j in range(h):
+          v = frec[i][j]
+          if v > 0:
+            for n in range(-padding, padding):
+              for m in range(-padding, padding):
+                if not (n == 0 and m == 0):
+                  if i + m >= 0 and i + m < w and j + n >= 0 and j + n < h:
+                    v2 = frec[i + m][j + n]
+                    if v2 > 0:
+                      if v - padding >= v2:
+                        frec[i][j] = v + v2 
+                        frec[i + m][j + n] = 0
+                        c = True
+  return frec
+  
+def find_centers(im, radius):
+  w, h = im.size
+  sobelx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
+  sobely = [[1, 2, 1], [0, 0, 0], [-1, -2, -1]]
+  gradx = convolucion(im, sobelx)
+  grady = convolucion(im, sobely)
+  Gx = gradx.load()
+  Gy = grady.load()
+  frec = zeros(w, h)
   for i in xrange(w):
+    y = w / 2- i
     for j in xrange(h):
-      suma = 0
-      for n in xrange(i-1, i+2):
-        for m in xrange(j-1, j+2):
-            if n >= 0 and m >= 0 and n < w and m < h:
-              suma += g[n - (i - 1)][ m - (j - 1)] * pix[n, m][1]
-      out[i, j] = suma, suma, suma
-  out_im.save("output.png", "png")
-  return out_im
+        x = j - h / 2
+        r, g, b = Gx[i, j]
+        gx = (r+g+b)/3
+        r, g, b = Gy[i, j]
+        gy = (r+g+b)/3
+        g = math.sqrt(gx ** 2 + gy ** 2)
+        if abs(g) > 0:
+            cos = gx / g
+            sin = gy / g
+            xc = int(round(x - radius * cos))
+            yc = int(round(y - radius * sin))
+            xcm = xc + h / 2
+            ycm = w / 2 - yc
+            if xcm >= 0 and xcm < h and ycm >= 0 and ycm < w:
+                frec[ycm][xcm] += 1
+
+  frec = group_votes(frec, (w, h))
+  
+  max_ = 0
+  suma = 0.0
+  for x in xrange(w):
+    for y in xrange(h):
+      v = frec[x][y]
+      suma += v
+      if v > max_:
+        max_ = v
+  promedio = suma / (w * h)
+  umbral = (max_ + promedio) / 2.0
+  coords = []
+  for x in xrange(w):
+    for y in xrange(h):
+      v = frec[x][y]
+      if v > umbral:
+        coords.append((x,y))
+  return coords
+
+def circle_detection(im, radius):
+  coords = find_centers(im, radius)
+  paint_circles(im, coords, radius)
 
 
 def bfs(im, origen, color):
@@ -457,6 +540,99 @@ def hough_transform(im, umb):
   line_image.save('output_lines.png')
   return im
 
+def circle_detection(im, radius):
+  w, h = im.size
+  print 'start'
+  sobelx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
+  sobely = [[1, 2, 1], [0, 0, 0], [-1, -2, -1]]
+  
+
+  gradx = convolucion(im, sobelx)
+  grady = convolucion(im, sobely)
+  Gx = gradx.load()
+  Gy = grady.load()
+  votos = []
+  print 'votes'
+  for i in range(w):
+    votos.append([0]*h)
+
+  for xm in xrange(w):
+    x = xm - w / 2
+    for ym in xrange(h):
+        y = h / 2- ym
+        gx = Gx[ym, xm][0]
+        gy = Gy[ym, xm][0]
+        g = math.sqrt(gx ** 2 + gy ** 2)
+        if abs(g) > 0:
+            cosTheta = gx / g
+            sinTheta = gy / g
+            xc = int(round(x - radius * cosTheta))
+            yc = int(round(y - radius * sinTheta))
+            xcm = xc + w / 2
+            ycm = h / 2 - yc
+            if xcm >= 0 and xcm < w and ycm >= 0 and ycm < h:
+                votos[ycm][xcm] += 1
+  print 'algo'
+  dim = min(w, h)
+  for rango in xrange (1, int(round(dim * 0.1))):
+    agregado = True
+    print rango, int(round(dim * 0.1))
+    while agregado:
+      agregado = False
+      for y in xrange(w):
+        for x in xrange(h):
+          v = votos[y][x]
+          if v > 0:
+            for dx in xrange(-rango, rango):
+              for dy in xrange(-rango, rango):
+                if not (dx == 0 and dy == 0):
+                  if y + dy >= 0 and y + dy < w and x + dx >= 0 and x + dx < h:
+                    v2 = votos[y + dy][x + dx]
+                    if v2 > 0:
+                      if v - rango >= v2:
+                        votos[y][x] = v + v2 
+                        votos[y + dy][x + dx] = 0
+                        agregado = True
+  
+  print 'here'
+  maximo = 0
+  suma = 0.0
+  for x in xrange(w):
+    for y in xrange(h):
+      v = votos[x][y]
+      suma += v
+      if v > maximo:
+        maximo = v
+           
+  promedio = suma / (w * h)
+  umbral = (maximo + promedio) / 2.0
+  pix = im.load()
+  draw = ImageDraw.Draw(im)
+  coords = []
+  yellow_tone = 0
+  for x in xrange(w):
+    for y in xrange(h):
+      v = votos[x][y]
+      if v > umbral:
+        print 'Posible centro detectado en (%d, %d). ' % (x, y)
+        pix[x, y] = (255, 0, 0)
+        draw.ellipse((x-radius, y-radius, x+radius, y+radius), outline = (255, 255, yellow_tone))
+        yellow_tone += 30
+  im.save(OUTPUT_FILE, 'PNG')
+  return im, coords
+
+def callback_circle():
+  global WORKING_IMAGE
+  WORKING_IMAGE, coords = circle_detection(WORKING_IMAGE, int(argv[2]))
+  w, h = WORKING_IMAGE.size
+  canvas.config(width = w, height = h)
+  photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
+  for i in range(len(coords)):
+    dx, dy = coords[i]
+    Tkinter.Label(canvas, text = '%d'%(i+1)).place(x = dx, y = dy)
+
 def callback_convex_hull():
   global WORKING_IMAGE
   INICIO = time.time()
@@ -466,7 +642,8 @@ def callback_convex_hull():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
-  #canvas.itemconfig(background, image = photo)
+  label.config(image = photo)
+  label.image = photo
   for i in range(len(hulls)):
     for j in range(len(hulls[i]) - 1):
       #print (hulls[i][j]), (hulls[i][j+1])
@@ -478,7 +655,8 @@ def callback_classify():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
-  canvas.itemconfig(background, image = photo)
+  label.config(image = photo)
+  label.image = photo
   i = 0
   for center in centroids:
     dx, dy = center[0], center[1]
@@ -492,6 +670,8 @@ def callback_blur():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
 
 def callback_grayscale():
   global WORKING_IMAGE
@@ -499,6 +679,8 @@ def callback_grayscale():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
 
 def callback_binary():
   global WORKING_IMAGE
@@ -506,6 +688,8 @@ def callback_binary():
   w, h = WORKING_IMAGE.size
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
 
 def callback_sal():
   w, h = image.size
@@ -513,6 +697,8 @@ def callback_sal():
   WORKING_IMAGE = sal_y_pimienta(WORKING_IMAGE, 0.5, 30)
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
 
 def callback_des_sal():
   w, h = image.size
@@ -520,6 +706,8 @@ def callback_des_sal():
   WORKING_IMAGE = des_sal_y_pimienta(WORKING_IMAGE, 30)
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
 
 def callback_negative():
   w, h = image.size
@@ -527,6 +715,8 @@ def callback_negative():
   WORKING_IMAGE = negativo(WORKING_IMAGE)
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = OUTPUT_FILE)
+  label.config(image = photo)
+  label.image = photo
 
 def callback_reset():
   w, h = image.size
@@ -534,26 +724,17 @@ def callback_reset():
   WORKING_IMAGE = image
   canvas.config(width = w, height = h)
   photo = ImageTk.PhotoImage(file = argv[1])
-
-def check(im):
-  w, h = im.size
-  pix = im.load()
-  for i in range(w):
-    for j in range(h):
-      if pix[i, j] == (255, 255, 255) or pix[i, j] == (0, 0, 0):
-        pass
-      else:
-        return False
-  return True
+  label.config(image = photo)
+  label.image = photo
 
 if __name__ == "__main__":
   global WORKING_IMAGE 
   assert(path.isfile(argv[1]))
   image = Image.open(argv[1]).convert('RGB')
   WORKING_IMAGE = image
-  image = to_grayscale(image, 'prom')
-  to_binary(image, 70)
-  #hough_transform(image, 1.0)
+  image = to_grayscale(image, "prom")
+  image = to_binary(image, 240)
+  
   """
   root = Tkinter.Tk()
   root.title("Vision Computacional")
@@ -561,18 +742,20 @@ if __name__ == "__main__":
   w, h = image.size
 
   canvas = Tkinter.Canvas(root, width = w, height = h)
-  background = canvas.create_image((w/2,h/2), image = photo)
+  label = Tkinter.Label(canvas, image = photo)
+  label.image = photo
+  label.pack()
 
   button_content = { 'Grayscale' : lambda:callback_grayscale, 'Binary' : lambda:callback_binary(),
                     'MedianBlur' : lambda:callback_blur(), 'SalyPimienta' : lambda:callback_sal(),
                     'DeshacerSyP': lambda:callback_des_sal(), 'Reset' : lambda:callback_reset(),
                     'Clasificar' : lambda:callback_classify(), 'ConvexHull' : lambda:callback_convex_hull(),
-                    'Negativo' : lambda:callback_negative()
+                    'Negativo' : lambda:callback_negative(), 'Circle Detection' : lambda:callback_circle()
                     }
-  second_canvas = Tkinter.Canvas(root, width = w, height = h+50)
+  second_canvas = Tkinter.Canvas(root, width = w, height = h+200)
   i = 1
   for item in button_content:
-    button = Tkinter.Button(second_canvas, text = item, command = button_content[item], width = 30)
+    button = Tkinter.Button(second_canvas, text = item, command = button_content[item], width = 10)
     button_window = second_canvas.create_window(10, 30*i, anchor='nw', window=button)
     i += 1
 
