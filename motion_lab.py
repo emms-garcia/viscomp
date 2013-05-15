@@ -1,7 +1,6 @@
 import Image
 import cv2.cv as cv
 import numpy
-from scipy import ndimage
 import sys
 
 c = cv.CreateCameraCapture(0)
