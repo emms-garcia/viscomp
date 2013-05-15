@@ -2,6 +2,7 @@ import Image
 import random
 import numpy
 import sys
+import os
 
 WIDTH, HEIGHT = 280, 160
 bg = numpy.empty((HEIGHT, WIDTH))
@@ -61,4 +62,6 @@ for i in range(int(sys.argv[1])):
         break
   x1, y1 = x2, y2
 
-  
+os.system("avconv -f image2 -i jpgs/output_frame_%d.png videos/tmp.avi")
+os.system("mencoder videos/out.avi -ovc raw -vf format=i420 -nosound -o videos/out.avi")
+os.system("rm videos/tmp.avi")
