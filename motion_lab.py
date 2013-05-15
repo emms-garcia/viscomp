@@ -115,33 +115,29 @@ def total_occupied_pixels(image, pt1, pt2):
   x1, y1 = pt1
   x2, y2 = pt2
   WHITE = numpy.array([255, 255, 255], dtype = image.dtype)
+  RED = numpy.array([255, 0, 0], dtype = image.dtype)
   count = 0
-#  tmp = image[x1: x2, y1: y2, :]
-#  n = numpy.where(tmp is numpy.array([255, 255, 255]))
-  for i in range(y1, y2):
-    for j in range(x1, x2):
-      v = int(image[i, j].sum())
-      w = int(WHITE.sum())
-      if  v == w:
-        count += 1
-  #print count
+  tmp = image[y1: y2, x1: x2, :]
+  count = numpy.where(tmp != WHITE)
+  count = len(count[0])/10
+    #print pt1, pt2, count
   return count
 
 def grid(image, size = 10):
   divx = WIDTH / size
   divy = HEIGHT / size
   AREA = size*size
-  pixels = cv2array(image)
+  pixels = cv2array(image).copy()
   for i in range(divx):
     for j in range(divy):
       pt1 = i*size, j*size
       pt2 = (i + 1)*size, (j + 1)*size
       n = total_occupied_pixels(pixels, pt1, pt2)
       #print n
-      if n > AREA*0.35:
-        cv.Rectangle(image, pt1, pt2, cv.CV_RGB(0, 255, 255), 1)
-      else:
+      if n > AREA*0.07:
         cv.Rectangle(image, pt1, pt2, cv.CV_RGB(0, 255, 0), 2)
+      else: 
+        cv.Rectangle(image, pt1, pt2, cv.CV_RGB(128, 128, 128), 1)
   return
 
 
@@ -166,20 +162,22 @@ while True:
   if VIDEOFILE: cv.SetCaptureProperty(c, cv.CV_CAP_PROP_POS_FRAMES, current_frame )
   camera_image = cv.QueryFrame( c )
   frame1 = cv.CloneImage( camera_image )
+#  cv.ConvertImage(frame1, frame1, cv.CV_CVTIMG_FLIP)
   array1 = cv2array(frame1)
   #pil1 = smooth(pil1)
 
   camera_image = cv.QueryFrame( c )
   frame2 = cv.CloneImage( camera_image )
+#  cv.ConvertImage(frame2, frame2, cv.CV_CVTIMG_FLIP)
   array2 = cv2array(frame2)
-  #pil2 = smooth(pil2)
+#  #pil2 = smooth(pil2)
 
-  out = difference(array1, array2)
-  out = grayscale(out)
+#  out = difference(array1, array2)
+#  out = grayscale(out)
 #  out = threshold(out, 2)
 #  print search_color(out, (0, 0, 0))
   
-  display_image = array2cv(out)
+#  display_image = array2cv(out)
   display_image = frame2
   grid(display_image)
   cv.ShowImage('e2', display_image)
