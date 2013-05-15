@@ -9,7 +9,7 @@ WIDTH, HEIGHT = 280, 160
 bg = numpy.empty((HEIGHT, WIDTH))
 bg.fill(255)
 bg = Image.fromarray(bg).convert('RGB')
-os.system("rm jpgs/*")
+os.system("rm frames/*")
 
 def draw_square(image, (x, y), k, color, n):
   w, h = image.size
@@ -19,7 +19,7 @@ def draw_square(image, (x, y), k, color, n):
     for j in k:
       dx, dy = x + i, y + j
       pix[dx, dy] = color
-  image.save('jpgs/output_frame_%s.png'%n, 'PNG')
+  image.save('frames/output_frame_%s.png'%n, 'PNG')
   return image
 
 points = []
@@ -69,6 +69,6 @@ while t < float(sys.argv[1])/4:
   ACTUAL = time.time()
   t = ACTUAL - INICIO
 
-os.system("avconv -f image2 -i jpgs/output_frame_%d.png videos/tmp.avi")
+os.system("avconv -f image2 -i frames/output_frame_%d.png videos/tmp.avi")
 os.system("mencoder videos/tmp.avi -ovc raw -vf format=i420 -nosound -o videos/out.avi")
 os.system("rm videos/tmp.avi")
