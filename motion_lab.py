@@ -84,18 +84,21 @@ def direction(p, q, last):
   angle = math.atan2(p[1] - q[1], p[0] - q[0])
   if int(math.degrees(angle)) in range(135, 225):
     print "Derecha, ",math.degrees(angle)
+    return pygame.font.SysFont("monospace", 15).render("->", 1, (0,0,0))
   elif int(math.degrees(angle)) in range(-45, 46):
-    print "Izquierda, ", math.degrees(angle)
+    print "Izquierda, ",math.degrees(angle)
+    return pygame.font.SysFont("monospace", 15).render("<-", 1, (0,0,0))
   elif int(math.degrees(angle)) in range(45, 136):
     print "Arriba, ", math.degrees(angle)
+    return pygame.font.SysFont("monospace", 15).render("^", 1, (0,0,0))
   else:
-    print 'Abajo', math.degrees(angle)
-  return
+    print 'Abajo, ', math.degrees(angle)
+    return pygame.font.SysFont("monospace", 15).render("v", 1, (0,0,0))
 
 current_frame = 0
 movement = "Nothing"
 frames = []
-
+label = pygame.font.SysFont("monospace", 15).render("", 5, (0,0,0))
 clock = pygame.time.Clock()
 while True:
   for event in pygame.event.get():
@@ -114,14 +117,14 @@ while True:
   motion = threshold(out, 15)
   cent = grid(motion, array2)
   frames.append(cent)
-
   if len(frames) == 2:
-    direction(frames[0], frames[1], movement)
+    label = direction(frames[0], frames[1], movement)
     frames.pop(0)
 
   background = pygame.image.load("tmp.png")
   backgroundRect = background.get_rect()
   screen.blit(background, backgroundRect)
+  screen.blit(label, (cent[0] - 20, cent[1] - 20))
   pygame.display.update()
 
   if current_frame >= 200: 
